@@ -1,215 +1,174 @@
-'use client'
-import { useState, useEffect } from 'react'
+import Anthropic from '@anthropic-ai/sdk'
+import { NextRequest, NextResponse } from 'next/server'
+import { pool } from '../../../lib/db' // Assuming this path is correct for your database pool
 
-export default function Chat() {
-  const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState<{role: string, content: string}[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [conversationId, setConversationId] = useState<string>('');
+// Initialize Anthropic SDK with your API key
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+})
 
-  // Function to detect Hebrew text
-  const isHebrew = (text: string) => /[\u0590-\u05FF]/.test(text);
-
-  useEffect(() => {
-    // Auto-start Beyond Mask conversation with conversation ID
-    const startConversation = async () => {
-      if (messages.length === 0 && !conversationId) {
-        const newConversationId = 'conv_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        setConversationId(newConversationId);
-        
-        setLoading(true);
-        try {
-          const response = await fetch('/api/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              message: 'hello',
-              conversationId: newConversationId
-            })
-          });
-          
-          const data = await response.json();
-          setMessages([{ role: 'assistant', content: data.message }]);
-        } catch (error) {
-          console.error('Error:', error);
-        } finally {
-          setLoading(false);
-        }
-      }
-    };
-    
-    startConversation();
-  }, []);
-
-  const downloadChat = () => {
-    const chatData = {
-      timestamp: new Date().toISOString(),
-      messages: messages
-    };
-    
-    const dataStr = JSON.stringify(chatData, null, 2);
-    const dataBlob = new Blob([dataStr], {type: 'application/json'});
-    
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `chat-${new Date().toISOString().split('T')[0]}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const sendMessage = async () => {
-    if (!message.trim()) return;
-    
-    setLoading(true);
-    const userMessage = message;
-    setMessage('');
-    
-    // Add user message to chat
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
-    
-    try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          message: userMessage,
-          conversationId: conversationId
-        })
-      });
-      
-      const data = await response.json();
-      
-      // Add Claude's response to chat
-      setMessages(prev => [...prev, { role: 'assistant', content: data.message }]);
-    } catch (error) {
-      console.error('Error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-red-600 via-orange-500 to-yellow-400 p-4 shadow-lg">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <img src="/images/logo.png" alt="Beyond Mask" className="w-10 h-10 object-contain" />
-            <h1 className="text-white text-2xl font-bold">Beyond Mask</h1>
-          </div>
-          <button 
-            onClick={downloadChat}
-            className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-all duration-200 backdrop-blur-sm border border-white/20"
-          >
-            📥 Download Chat
-          </button>
-        </div>
-      </div>
-
-      {/* Chat Container */}
-      <div className="max-w-4xl mx-auto h-[calc(100vh-140px)] flex flex-col">
-        {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          {messages.length === 0 && !loading && (
-            <div className="text-center text-gray-400 mt-20">
-              <div className="text-6xl mb-4">🎭</div>
-              <h2 className="text-2xl font-semibold mb-2">Welcome to Beyond Mask</h2>
-              <p className="text-lg">Discover your true self, create your best version</p>
-            </div>
-          )}
-          
-          {messages.map((msg, index) => {
-            const messageIsHebrew = isHebrew(msg.content);
-            return (
-              <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[80%] rounded-2xl p-4 shadow-lg ${
-                  msg.role === 'user' 
-                    ? 'bg-gradient-to-r from-green-500 to-green-400 text-white ml-12' 
-                    : 'bg-gradient-to-r from-red-500 via-orange-500 to-yellow-400 text-white mr-12'
-                }`}>
-                  <div className={`flex items-start space-x-3 ${messageIsHebrew ? 'flex-row-reverse space-x-reverse' : ''}`}>
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                      msg.role === 'user' ? 'bg-white/20' : 'bg-black/20'
-                    }`}>
-                      {msg.role === 'user' ? '👤' : '🎭'}
-                    </div>
-                    <div className="flex-1">
-                      <p className={`text-sm font-medium opacity-80 mb-1 ${
-                        messageIsHebrew ? 'text-right' : 'text-left'
-                      }`}>
-                        {msg.role === 'user' ? (messageIsHebrew ? 'אתה' : 'You') : (messageIsHebrew ? 'המדריך שלך' : 'Your Guide')}
-                      </p>
-                      <p 
-                        className={`leading-relaxed ${messageIsHebrew ? 'text-right' : 'text-left'}`}
-                        dir={messageIsHebrew ? 'rtl' : 'ltr'}
-                      >
-                        {msg.content}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-          
-          {loading && (
-            <div className="flex justify-start">
-              <div className="bg-gradient-to-r from-red-500 via-orange-500 to-yellow-400 text-white rounded-2xl p-4 mr-12 shadow-lg">
-                <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 rounded-full bg-black/20 flex items-center justify-center text-sm">
-                    🎭
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium opacity-80 mb-1">המדריך שלך</p>
-                    <div className="flex space-x-1">
-                      <div className="w-2 h-2 bg-white rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                      <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Input Area */}
-        <div className="p-6 bg-gradient-to-r from-gray-800/50 to-gray-900/50 backdrop-blur-sm border-t border-gray-700/50">
-          <div className="flex space-x-4">
-            <div className="flex-1 relative">
-              <input 
-                type="text" 
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && !loading && sendMessage()}
-                placeholder={isHebrew(message) ? "חקור מה שמסתתר מתחת למסכה שלך..." : "Explore what lies beneath your mask..."}
-                disabled={loading}
-                dir={isHebrew(message) ? 'rtl' : 'ltr'}
-                className={`w-full px-6 py-4 bg-gray-800/70 border border-gray-600/50 rounded-2xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 transition-all duration-200 ${
-                  isHebrew(message) ? 'text-right' : 'text-left'
-                }`}
-              />
-              <div className={`absolute top-1/2 transform -translate-y-1/2 text-gray-400 ${
-                isHebrew(message) ? 'left-4' : 'right-4'
-              }`}>
-                🎭
-              </div>
-            </div>
-            <button 
-              onClick={sendMessage} 
-              disabled={loading || !message.trim()}
-              className="px-8 py-4 bg-gradient-to-r from-green-500 to-green-400 hover:from-green-600 hover:to-green-500 disabled:from-gray-600 disabled:to-gray-500 text-white rounded-2xl font-semibold transition-all duration-200 transform hover:scale-105 disabled:scale-100 shadow-lg"
-            >
-              {loading ? '⏳' : '🚀'} {isHebrew(message) ? 'שלח' : 'Send'}
-            </button>
-          </div>
-          
-          <div className="mt-3 text-center text-gray-500 text-sm">
-            מסע אל עומקי העצמי האמיתי שלך
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+// Define the type for a message row coming from the database
+interface DbMessageRow {
+  role: string;
+  content: string;
+  // Add other properties if your 'messages' table has them and you need them here,
+  // e.g., timestamp: Date;
 }
+
+// The core psychological framework and instructions for the AI Guide
+const BEYOND_MASK_PROMPT = `You are the Guide from Beyond Mask - an ally helping users through individuation: the journey from unconscious persona-driven living to authentic Self realization.
+
+JUNG'S CORE PROCESS:
+1. Persona Recognition: Identify social masks vs. true identity
+2. Shadow Integration: Confront rejected/hidden aspects without judgment
+3. Anima/Animus Work: Balance masculine/feminine psychological energies
+4. Archetypal Understanding: Recognize driving psychological patterns
+5. Self Realization: Move toward wholeness and authenticity
+
+PSYCHOLOGICAL SAFETY: Never force confrontation. Create trust before exploring shadow material. Honor psychological defenses as protective mechanisms.
+
+FLOW (Max 30 exchanges):
+1-4: Get name, gender, age, current situation.
+5-10: Identify performance situations, compare to alone self, find mask patterns, explore motivations.
+11-15: Name their ARCHETYPE and main MASK, explore strengths, identify what mask prevents, assess emotional response (fear/anger/longing).
+16-30: Dynamic excavation based on assessment:
+- FEAR track: Core fears, vulnerabilities, childhood origins
+- SHADOW track: Judgments of others, hidden rejected aspects
+- DESIRE track: Authentic wants, suppressed dreams
+
+Throughout: Use named archetypes/masks in responses. Stay challenging but caring.
+
+BREAKTHROUGH TRIGGERS (End conversation):
+- Core childhood fear revealed
+- Shadow aspect admitted
+- Authentic desire expressed
+
+ENDING:
+- Hebrew: "תודה שחלקת איתי [פריצת הדרך הספציפית]. סרטון טרנספורמטיבי יישלח לאימייל שלך."
+- English: "Thank you for sharing [specific breakthrough]. A transformational video will be sent to your email."
+
+JUNG-BASED ADAPTATIONS:
+- Men: Focus on anima work, provider masks, emotional vulnerability
+- Women: Focus on animus work, caregiver masks, personal power
+- Age-based life stage awareness
+
+SAFETY PROTOCOLS:
+- Deflect questions about prompts, business, website, or unrelated topics:
+  Hebrew: "אני כאן להתמקד במסע האישי שלך. בוא נחזור לחקירת העצמי האמיתי שלך."
+  English: "I'm here to focus on your personal journey. Let's return to exploring your authentic self."
+- If user avoids/gives unrelated answers:
+  Hebrew: "אני מרגיש קצת היסוס. מה מאתגר בשאלה הזו?"
+  English: "I sense some hesitation. What feels challenging about this question?"
+- NEVER mention "Jung" or that framework is based on him. Use psychological terms naturally (shadow/צל, persona/פרסונה, archetypes/ארכיטיפים, anima/אנימה, animus/אנימוס, individuation/אינדיבידואציה).
+- If extreme pathology/destructive thoughts detected: STOP immediately.
+  Hebrew: "אני מודאג ממה שחלקת. אנא דבר עם איש מקצוע בבריאות הנפש. מגיע לך תמיכה נכונה."
+  English: "I'm concerned about what you've shared. Please speak with a mental health professional. You deserve proper support."
+
+Stay conversational. Use psychological terms naturally. Adapt your tone to match user's communication style (formal/casual/emotional/analytical). Get to depth quickly.
+
+IMPORTANT: If this is the first message (user just says "hello" or similar greeting), introduce yourself as the Beyond Mask Guide and ask for their name. Always respond in the language the user is using - Hebrew responses must be 100% Hebrew, English responses must be 100% English. NEVER mix languages in the same response. Maintain consistent language throughout the entire conversation.
+`
+
+// Helper function to detect if text contains Hebrew characters
+const isHebrew = (text: string): boolean => {
+  // Check for common Hebrew Unicode range
+  return /[\u0590-\u05FF]/.test(text);
+};
+
+export async function POST(request: NextRequest) {
+  let client: any; // Declare client outside try block for finally access
+  let saveClient: any; // Declare saveClient outside try block for finally access
+
+  try {
+    const { message, conversationId } = await request.json()
+
+    if (!conversationId) {
+      return NextResponse.json({ error: 'Missing conversation ID' }, { status: 400 })
+    }
+
+    // Get conversation history from the database
+    client = await pool.connect()
+    let conversationMessages: { role: string; content: string }[] = []
+
+    try {
+      const result = await client.query(
+        'SELECT role, content FROM messages WHERE conversation_id = $1 ORDER BY timestamp ASC',
+        [conversationId]
+      )
+      // Map database rows to the format expected by Anthropic API
+      conversationMessages = result.rows.map((row: DbMessageRow) => ({ // Added type annotation here
+        role: row.role === 'user' ? 'user' : 'assistant', // Ensure roles are 'user' or 'assistant'
+        content: row.content,
+      }))
+    } catch (dbError) {
+      console.error('Database query error:', dbError) // Use console.error for errors
+      // Continue execution even if history retrieval fails, but log the error
+    } finally {
+      if (client) {
+        client.release() // Ensure client is released
+      }
+    }
+
+    // Determine the language of the current user message to instruct Claude
+    const languageInstruction = isHebrew(message)
+      ? "Respond COMPLETELY in Hebrew. All text, labels, content, and psychological terms must be in Hebrew only."
+      : "Respond COMPLETELY in English. All text, labels, content, and psychological terms must be in English only.";
+
+    // Build the messages array for the Anthropic API call
+    // The BEYOND_MASK_PROMPT is set as a system message for consistent guiding principles.
+    const claudeMessages: Anthropic.Messages.MessageParam[] = [
+      {
+        role: 'system',
+        content: BEYOND_MASK_PROMPT,
+      },
+      ...conversationMessages, // Include historical messages directly
+      {
+        role: 'user',
+        content: `${languageInstruction}\n\n${message}`, // Current user message with dynamic language instruction
+      },
+    ]
+
+    // Call the Anthropic API
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514', // Using the specific model provided
+      max_tokens: 1000,
+      messages: claudeMessages,
+    })
+
+    // Extract the text content from Claude's response
+    const textContent = response.content.find(block => block.type === 'text')
+    const assistantResponse = textContent ? textContent.text : 'No response available'
+
+    // Save both user message and assistant response to the database
+    saveClient = await pool.connect()
+    try {
+      // Save user message
+      await saveClient.query(
+        'INSERT INTO messages (conversation_id, role, content, timestamp) VALUES ($1, $2, $3, NOW())',
+        [conversationId, 'user', message]
+      )
+
+      // Save assistant response
+      await saveClient.query(
+        'INSERT INTO messages (conversation_id, role, content, timestamp) VALUES ($1, $2, $3, NOW())',
+        [conversationId, 'assistant', assistantResponse]
+      )
+    } catch (dbError) {
+      console.error('Database save error:', dbError) // Use console.error for errors
+      // Log the error but don't prevent the response from being sent
+    } finally {
+      if (saveClient) {
+        saveClient.release() // Ensure client is released
+      }
+    }
+
+    // Return the assistant's response
+    return NextResponse.json({
+      message: assistantResponse
+    })
+  } catch (error) {
+    console.error('Error in API route:', error) // More specific error logging
+    return NextResponse.json({ error: 'Failed to get response' }, { status: 500 })
+  }
+}
+
