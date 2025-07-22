@@ -7,6 +7,9 @@ export default function Chat() {
   const [loading, setLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string>('');
 
+  // Function to detect Hebrew text
+  const isHebrew = (text: string) => /[\u0590-\u05FF]/.test(text);
+
   useEffect(() => {
     // Auto-start Beyond Mask conversation with conversation ID
     const startConversation = async () => {
@@ -92,7 +95,6 @@ export default function Chat() {
       <div className="bg-gradient-to-r from-red-600 via-orange-500 to-yellow-400 p-4 shadow-lg">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            {/* Logo placeholder - you can add your actual logo here */}
             <img src="/images/logo.png" alt="Beyond Mask" className="w-10 h-10 object-contain" />
             <h1 className="text-white text-2xl font-bold">Beyond Mask</h1>
           </div>
@@ -117,29 +119,39 @@ export default function Chat() {
             </div>
           )}
           
-          {messages.map((msg, index) => (
-            <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[80%] rounded-2xl p-4 shadow-lg ${
-                msg.role === 'user' 
-                  ? 'bg-gradient-to-r from-green-500 to-green-400 text-white ml-12' 
-                  : 'bg-gradient-to-r from-red-500 via-orange-500 to-yellow-400 text-white mr-12'
-              }`}>
-                <div className="flex items-start space-x-2">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                    msg.role === 'user' ? 'bg-white/20' : 'bg-black/20'
-                  }`}>
-                    {msg.role === 'user' ? '👤' : '🎭'}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium opacity-80 mb-1">
-                      {msg.role === 'user' ? 'You' : 'Your Guide'}
-                    </p>
-                    <p className="leading-relaxed">{msg.content}</p>
+          {messages.map((msg, index) => {
+            const messageIsHebrew = isHebrew(msg.content);
+            return (
+              <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[80%] rounded-2xl p-4 shadow-lg ${
+                  msg.role === 'user' 
+                    ? 'bg-gradient-to-r from-green-500 to-green-400 text-white ml-12' 
+                    : 'bg-gradient-to-r from-red-500 via-orange-500 to-yellow-400 text-white mr-12'
+                }`}>
+                  <div className={`flex items-start space-x-3 ${messageIsHebrew ? 'flex-row-reverse space-x-reverse' : ''}`}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                      msg.role === 'user' ? 'bg-white/20' : 'bg-black/20'
+                    }`}>
+                      {msg.role === 'user' ? '👤' : '🎭'}
+                    </div>
+                    <div className="flex-1">
+                      <p className={`text-sm font-medium opacity-80 mb-1 ${
+                        messageIsHebrew ? 'text-right' : 'text-left'
+                      }`}>
+                        {msg.role === 'user' ? (messageIsHebrew ? 'אתה' : 'You') : (messageIsHebrew ? 'המדריך שלך' : 'Your Guide')}
+                      </p>
+                      <p 
+                        className={`leading-relaxed ${messageIsHebrew ? 'text-right' : 'text-left'}`}
+                        dir={messageIsHebrew ? 'rtl' : 'ltr'}
+                      >
+                        {msg.content}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           
           {loading && (
             <div className="flex justify-start">
@@ -149,7 +161,7 @@ export default function Chat() {
                     🎭
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium opacity-80 mb-1">Your Guide</p>
+                    <p className="text-sm font-medium opacity-80 mb-1">המדריך שלך</p>
                     <div className="flex space-x-1">
                       <div className="w-2 h-2 bg-white rounded-full animate-bounce"></div>
                       <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
@@ -171,11 +183,16 @@ export default function Chat() {
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && !loading && sendMessage()}
-                placeholder="Explore what lies beneath your mask..."
+                placeholder={isHebrew(message) ? "חקור מה שמסתתר מתחת למסכה שלך..." : "Explore what lies beneath your mask..."}
                 disabled={loading}
-                className="w-full px-6 py-4 bg-gray-800/70 border border-gray-600/50 rounded-2xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 transition-all duration-200"
+                dir={isHebrew(message) ? 'rtl' : 'ltr'}
+                className={`w-full px-6 py-4 bg-gray-800/70 border border-gray-600/50 rounded-2xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 transition-all duration-200 ${
+                  isHebrew(message) ? 'text-right' : 'text-left'
+                }`}
               />
-              <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+              <div className={`absolute top-1/2 transform -translate-y-1/2 text-gray-400 ${
+                isHebrew(message) ? 'left-4' : 'right-4'
+              }`}>
                 🎭
               </div>
             </div>
@@ -184,12 +201,12 @@ export default function Chat() {
               disabled={loading || !message.trim()}
               className="px-8 py-4 bg-gradient-to-r from-green-500 to-green-400 hover:from-green-600 hover:to-green-500 disabled:from-gray-600 disabled:to-gray-500 text-white rounded-2xl font-semibold transition-all duration-200 transform hover:scale-105 disabled:scale-100 shadow-lg"
             >
-              {loading ? '⏳' : '🚀'} Send
+              {loading ? '⏳' : '🚀'} {isHebrew(message) ? 'שלח' : 'Send'}
             </button>
           </div>
           
           <div className="mt-3 text-center text-gray-500 text-sm">
-            Journey into the depths of your authentic self
+            מסע אל עומקי העצמי האמיתי שלך
           </div>
         </div>
       </div>
