@@ -1,10 +1,35 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 export default function Chat() {
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<{role: string, content: string}[]>([]);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // Auto-start Beyond Mask conversation
+    const startConversation = async () => {
+      if (messages.length === 0) {
+        setLoading(true);
+        try {
+          const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: 'hello' })
+          });
+          
+          const data = await response.json();
+          setMessages([{ role: 'assistant', content: data.message }]);
+        } catch (error) {
+          console.error('Error:', error);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+    
+    startConversation();
+  }, []);
 
   const downloadChat = () => {
     const chatData = {
@@ -58,7 +83,8 @@ export default function Chat() {
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-3">
             {/* Logo placeholder - you can add your actual logo here */}
-<img src="/images/logo.png" alt="Beyond Mask" className="w-10 h-10 object-contain" />            <h1 className="text-white text-2xl font-bold">Beyond Mask</h1>
+            <img src="/images/logo.png" alt="Beyond Mask" className="w-10 h-10 object-contain" />
+            <h1 className="text-white text-2xl font-bold">Beyond Mask</h1>
           </div>
           <button 
             onClick={downloadChat}
@@ -73,7 +99,7 @@ export default function Chat() {
       <div className="max-w-4xl mx-auto h-[calc(100vh-140px)] flex flex-col">
         {/* Messages Area */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          {messages.length === 0 && (
+          {messages.length === 0 && !loading && (
             <div className="text-center text-gray-400 mt-20">
               <div className="text-6xl mb-4">🎭</div>
               <h2 className="text-2xl font-semibold mb-2">Welcome to Beyond Mask</h2>
@@ -96,7 +122,7 @@ export default function Chat() {
                   </div>
                   <div className="flex-1">
                     <p className="text-sm font-medium opacity-80 mb-1">
-                      {msg.role === 'user' ? 'You' : 'Your Ally'}
+                      {msg.role === 'user' ? 'You' : 'Your Guide'}
                     </p>
                     <p className="leading-relaxed">{msg.content}</p>
                   </div>
@@ -113,7 +139,7 @@ export default function Chat() {
                     🎭
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium opacity-80 mb-1">Psychology Guide</p>
+                    <p className="text-sm font-medium opacity-80 mb-1">Your Guide</p>
                     <div className="flex space-x-1">
                       <div className="w-2 h-2 bg-white rounded-full animate-bounce"></div>
                       <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
