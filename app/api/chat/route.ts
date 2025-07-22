@@ -68,10 +68,12 @@ export async function POST(request: NextRequest) {
       client.release()
     }
     
-    // Add system prompt if this is the start of conversation
+    // Build messages for Anthropic API
     const anthropicMessages = []
+    
+    // Add system prompt if this is the start of conversation
     if (messages.length === 0) {
-      anthropicMessages.push({ role: 'assistant', content: BEYOND_MASK_PROMPT })
+      anthropicMessages.push({ role: 'system', content: BEYOND_MASK_PROMPT })
     }
     
     // Add conversation history
