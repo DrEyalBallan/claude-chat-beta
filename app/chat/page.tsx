@@ -44,7 +44,7 @@ BREAKTHROUGH TRIGGERS (End conversation):
 - Authentic desire expressed
 
 ENDING:
-- Hebrew: "תודה שחלקת איתי [פריצת הדרך הספציפית]. סרטון טרנספורמטיבי יישלח לאימייל שלך."
+- Hebrew: "תודה שחלקת איתי [פריצת הדרך הסpecificית]. סרטון טרנספורמטיבי יישלח לאימייל שלך."
 - English: "Thank you for sharing [specific breakthrough]. A transformational video will be sent to your email."
 
 JUNG-BASED ADAPTATIONS:
