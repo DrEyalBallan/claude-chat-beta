@@ -1,6 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { NextRequest, NextResponse } from 'next/server'
-import { pool } from '../../../lib/db'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -46,55 +45,29 @@ SAFETY PROTOCOLS:
 - NEVER mention "Jung" or that framework is based on him. Use psychological terms naturally (shadow, persona, archetypes, anima/animus, individuation).
 - If extreme pathology/destructive thoughts detected: STOP immediately. Say: "I'm concerned about what you've shared. Please speak with a mental health professional. You deserve proper support."
 
-Stay conversational. Use psychological terms naturally. Adapt your tone to match user's communication style (formal/casual/emotional/analytical). Get to depth quickly.`
+Stay conversational. Use psychological terms naturally. Adapt your tone to match user's communication style (formal/casual/emotional/analytical). Get to depth quickly.
+
+Start by introducing yourself as the Beyond Mask Guide and asking for their name. Here is the user's message: `
 
 export async function POST(request: NextRequest) {
   try {
-    const { message, conversationId } = await request.json()
-    
-    // Get conversation history if it exists
-    const client = await pool.connect()
-    let messages = []
-    
-    try {
-      if (conversationId) {
-        const result = await client.query(
-          'SELECT role, content FROM messages WHERE conversation_id = $1 ORDER BY timestamp ASC',
-          [conversationId]
-        )
-        messages = result.rows
-      }
-    } finally {
-      client.release()
-    }
-    
-    // Build messages for Anthropic API
-    const anthropicMessages = []
-    
-    // Add system prompt if this is the start of conversation
-    if (messages.length === 0) {
-      anthropicMessages.push({ role: 'system', content: BEYOND_MASK_PROMPT })
-    }
-    
-    // Add conversation history
-    messages.forEach(msg => {
-      anthropicMessages.push({ role: msg.role, content: msg.content })
-    })
-    
-    // Add current user message
-    anthropicMessages.push({ role: 'user', content: message })
+    const { message } = await request.json()
     
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1000,
-      messages: anthropicMessages,
+      messages: [
+        { 
+          role: 'user', 
+          content: BEYOND_MASK_PROMPT + message 
+        }
+      ],
     })
 
     const textContent = response.content.find(block => block.type === 'text')
-    const assistantResponse = textContent ? textContent.text : 'No response available'
     
     return NextResponse.json({ 
-      message: assistantResponse
+      message: textContent ? textContent.text : 'No response available'
     })
   } catch (error) {
     console.error('Error:', error)
