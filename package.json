@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.57.0",
+    "@clerk/nextjs": "^6.25.4",
     "@types/pg": "^8.15.4",
     "bcryptjs": "^3.0.2",
     "jsonwebtoken": "^9.0.2",
