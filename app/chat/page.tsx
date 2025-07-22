@@ -5,17 +5,24 @@ export default function Chat() {
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<{role: string, content: string}[]>([]);
   const [loading, setLoading] = useState(false);
+  const [conversationId, setConversationId] = useState<string>('');
 
   useEffect(() => {
-    // Auto-start Beyond Mask conversation
+    // Auto-start Beyond Mask conversation with conversation ID
     const startConversation = async () => {
-      if (messages.length === 0) {
+      if (messages.length === 0 && !conversationId) {
+        const newConversationId = 'conv_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        setConversationId(newConversationId);
+        
         setLoading(true);
         try {
           const response = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: 'hello' })
+            body: JSON.stringify({ 
+              message: 'hello',
+              conversationId: newConversationId
+            })
           });
           
           const data = await response.json();
@@ -62,7 +69,10 @@ export default function Chat() {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMessage })
+        body: JSON.stringify({ 
+          message: userMessage,
+          conversationId: conversationId
+        })
       });
       
       const data = await response.json();
