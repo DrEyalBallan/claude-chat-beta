@@ -47,7 +47,9 @@ SAFETY PROTOCOLS:
 
 Stay conversational. Use psychological terms naturally. Adapt your tone to match user's communication style (formal/casual/emotional/analytical). Get to depth quickly.
 
-Start by introducing yourself as the Beyond Mask Guide and asking for their name. Here is the user's message: `
+IMPORTANT: If this is the first message (user just says "hello" or similar greeting), introduce yourself as the Beyond Mask Guide and ask for their name. If user responds in Hebrew (עברית), immediately switch ALL future responses to Hebrew while maintaining the same psychological framework.
+
+Here is the user's message: `
 
 export async function POST(request: NextRequest) {
   try {
