@@ -96,7 +96,7 @@ export default function Chat() {
                   </div>
                   <div className="flex-1">
                     <p className="text-sm font-medium opacity-80 mb-1">
-                      {msg.role === 'user' ? 'You' : 'Psychology Guide'}
+                      {msg.role === 'user' ? 'You' : 'Your Ally'}
                     </p>
                     <p className="leading-relaxed">{msg.content}</p>
                   </div>
