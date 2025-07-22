@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { NextRequest, NextResponse } from 'next/server'
+import { pool } from '../../../lib/db'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -59,11 +60,43 @@ Stay conversational. Use psychological terms naturally. Adapt your tone to match
 
 IMPORTANT: If this is the first message (user just says "hello" or similar greeting), introduce yourself as the Beyond Mask Guide and ask for their name. Always respond in the language the user is using - Hebrew responses must be 100% Hebrew, English responses must be 100% English.
 
-Here is the user's message: `
+Here is the conversation history and current message:`
 
 export async function POST(request: NextRequest) {
   try {
-    const { message } = await request.json()
+    const { message, conversationId } = await request.json()
+    
+    if (!conversationId) {
+      return NextResponse.json({ error: 'Missing conversation ID' }, { status: 400 })
+    }
+    
+    // Get conversation history
+    const client = await pool.connect()
+    let conversationMessages = []
+    
+    try {
+      const result = await client.query(
+        'SELECT role, content FROM messages WHERE conversation_id = $1 ORDER BY timestamp ASC',
+        [conversationId]
+      )
+      conversationMessages = result.rows
+    } catch (dbError) {
+      console.log('Database query error:', dbError)
+    } finally {
+      client.release()
+    }
+    
+    // Build conversation context
+    let conversationContext = ''
+    if (conversationMessages.length > 0) {
+      conversationContext = 'Previous conversation:\n'
+      conversationMessages.forEach(msg => {
+        conversationContext += `${msg.role}: ${msg.content}\n`
+      })
+      conversationContext += '\nCurrent message: '
+    } else {
+      conversationContext = 'This is the start of a new conversation. Current message: '
+    }
     
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
@@ -71,15 +104,36 @@ export async function POST(request: NextRequest) {
       messages: [
         { 
           role: 'user', 
-          content: BEYOND_MASK_PROMPT + message 
+          content: BEYOND_MASK_PROMPT + '\n\n' + conversationContext + message 
         }
       ],
     })
 
     const textContent = response.content.find(block => block.type === 'text')
+    const assistantResponse = textContent ? textContent.text : 'No response available'
+    
+    // Save messages to database
+    const saveClient = await pool.connect()
+    try {
+      // Save user message
+      await saveClient.query(
+        'INSERT INTO messages (conversation_id, role, content, timestamp) VALUES ($1, $2, $3, NOW())',
+        [conversationId, 'user', message]
+      )
+      
+      // Save assistant response
+      await saveClient.query(
+        'INSERT INTO messages (conversation_id, role, content, timestamp) VALUES ($1, $2, $3, NOW())',
+        [conversationId, 'assistant', assistantResponse]
+      )
+    } catch (dbError) {
+      console.log('Database save error:', dbError)
+    } finally {
+      saveClient.release()
+    }
     
     return NextResponse.json({ 
-      message: textContent ? textContent.text : 'No response available'
+      message: assistantResponse
     })
   } catch (error) {
     console.error('Error:', error)
