@@ -77,7 +77,7 @@ export default function Chat() {
             <div className="text-center text-gray-400 mt-20">
               <div className="text-6xl mb-4">🎭</div>
               <h2 className="text-2xl font-semibold mb-2">Welcome to Beyond Mask</h2>
-              <p className="text-lg">Discover what lies beneath the surface of your psyche</p>
+              <p className="text-lg">Discover your true self, create your best version</p>
             </div>
           )}
           
