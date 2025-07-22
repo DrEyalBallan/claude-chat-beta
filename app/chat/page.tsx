@@ -58,10 +58,7 @@ export default function Chat() {
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-3">
             {/* Logo placeholder - you can add your actual logo here */}
-            <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-green-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">BM</span>
-            </div>
-            <h1 className="text-white text-2xl font-bold">Beyond Mask</h1>
+<img src="/images/logo.png" alt="Beyond Mask" className="w-10 h-10 object-contain" />            <h1 className="text-white text-2xl font-bold">Beyond Mask</h1>
           </div>
           <button 
             onClick={downloadChat}
