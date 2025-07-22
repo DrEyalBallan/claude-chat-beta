@@ -1,18 +1,11 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { NextRequest, NextResponse } from 'next/server'
-import { pool } from '../../../lib/db'
+import { pool } from '../../../lib/db' // Assuming this path is correct for your database pool
 
 // Initialize Anthropic SDK with your API key
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 })
-
-// Define the type for a message row coming from the database
-interface DbMessageRow {
-  role: string;
-  content: string;
-  timestamp?: Date;
-}
 
 // The core psychological framework and instructions for the AI Guide
 const BEYOND_MASK_PROMPT = `You are the Guide from Beyond Mask - an ally helping users through individuation: the journey from unconscious persona-driven living to authentic Self realization.
@@ -20,7 +13,7 @@ const BEYOND_MASK_PROMPT = `You are the Guide from Beyond Mask - an ally helping
 JUNG'S CORE PROCESS:
 1. Persona Recognition: Identify social masks vs. true identity
 2. Shadow Integration: Confront rejected/hidden aspects without judgment
-3. Anima/Animus Work: Balance masculine/feminine psychological energies
+3. Anima/Animus Work: Balance maasculine/feminine psychological energies
 4. Archetypal Understanding: Recognize driving psychological patterns
 5. Self Realization: Move toward wholeness and authenticity
 
@@ -65,49 +58,18 @@ SAFETY PROTOCOLS:
 
 Stay conversational. Use psychological terms naturally. Adapt your tone to match user's communication style (formal/casual/emotional/analytical). Get to depth quickly.
 
-CRITICAL LANGUAGE RULE: Maintain absolute language consistency throughout the entire conversation. If responding in Hebrew, use ONLY Hebrew - no English words, labels, or mixed content. If responding in English, use ONLY English. Never mix languages within the same response.
+IMPORTANT: If this is the first message (user just says "hello" or similar greeting), introduce yourself as the Beyond Mask Guide and ask for their name. Always respond in the language the user is using - Hebrew responses must be 100% Hebrew, English responses must be 100% English. NEVER mix languages in the same response. Maintain consistent language throughout the entire conversation.
+`
 
-IMPORTANT: If this is the first message (user just says "hello" or similar greeting), introduce yourself as the Beyond Mask Guide and ask for their name. Always respond in the language the user is using.`
-
-// Enhanced Hebrew detection function
-const detectLanguage = (text: string): 'hebrew' | 'english' => {
-  // Remove punctuation and spaces for better detection
-  const cleanText = text.replace(/[^\u0590-\u05FF\u0041-\u005A\u0061-\u007A]/g, '');
-  
-  const hebrewChars = (cleanText.match(/[\u0590-\u05FF]/g) || []).length;
-  const englishChars = (cleanText.match(/[A-Za-z]/g) || []).length;
-  
-  // If more than 30% Hebrew characters, consider it Hebrew
-  if (hebrewChars > 0 && hebrewChars / cleanText.length > 0.3) {
-    return 'hebrew';
-  }
-  
-  return 'english';
-};
-
-// Generate language-specific system prompt
-const getLanguagePrompt = (language: 'hebrew' | 'english'): string => {
-  if (language === 'hebrew') {
-    return `${BEYOND_MASK_PROMPT}
-
-חוקי שפה קריטיים:
-- השב אך ורק בעברית
-- השתמש במונחים פסיכולוגיים בעברית בלבד
-- אל תערבב עברית ואנגלית באותה תגובה
-- שמור על עקביות לשונית לאורך כל השיחה`;
-  } else {
-    return `${BEYOND_MASK_PROMPT}
-
-CRITICAL LANGUAGE RULES:
-- Respond ONLY in English
-- Use psychological terms in English only
-- Never mix Hebrew and English in the same response
-- Maintain language consistency throughout the entire conversation`;
-  }
+// Helper function to detect if text contains Hebrew characters
+const isHebrew = (text: string): boolean => {
+  // Check for common Hebrew Unicode range
+  return /[\u0590-\u05FF]/.test(text);
 };
 
 export async function POST(request: NextRequest) {
-  let client: any = null;
+  let client: any; // Declare client outside try block for finally access
+  let saveClient: any; // Declare saveClient outside try block for finally access
 
   try {
     const { message, conversationId } = await request.json()
@@ -116,121 +78,89 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing conversation ID' }, { status: 400 })
     }
 
-    if (!message || typeof message !== 'string') {
-      return NextResponse.json({ error: 'Invalid message format' }, { status: 400 })
-    }
-
-    // Detect language of current message
-    const messageLanguage = detectLanguage(message);
-    
     // Get conversation history from the database
     client = await pool.connect()
-    let conversationMessages: Anthropic.Messages.MessageParam[] = []
+    let conversationMessages: { role: string; content: string }[] = []
 
     try {
       const result = await client.query(
         'SELECT role, content FROM messages WHERE conversation_id = $1 ORDER BY timestamp ASC',
         [conversationId]
       )
-      
-      // Convert database rows to Anthropic message format
-      conversationMessages = result.rows.map((row: DbMessageRow): Anthropic.Messages.MessageParam => ({
-        role: row.role === 'user' ? 'user' : 'assistant',
+      // Map database rows to the format expected by Anthropic API
+      conversationMessages = result.rows.map(row => ({
+        role: row.role === 'user' ? 'user' : 'assistant', // Ensure roles are 'user' or 'assistant'
         content: row.content,
       }))
-      
     } catch (dbError) {
-      console.error('Database query error:', dbError)
-      // Continue with empty conversation history if database fails
-      conversationMessages = []
+      console.error('Database query error:', dbError) // Use console.error for errors
+      // Continue execution even if history retrieval fails, but log the error
+    } finally {
+      if (client) {
+        client.release() // Ensure client is released
+      }
     }
 
-    // Add current user message to conversation
-    conversationMessages.push({
-      role: 'user',
-      content: message
-    });
+    // Determine the language of the current user message to instruct Claude
+    const languageInstruction = isHebrew(message)
+      ? "Respond COMPLETELY in Hebrew. All text, labels, content, and psychological terms must be in Hebrew only."
+      : "Respond COMPLETELY in English. All text, labels, content, and psychological terms must be in English only.";
 
-    // Generate language-appropriate system prompt
-    const systemPrompt = getLanguagePrompt(messageLanguage);
+    // Build the messages array for the Anthropic API call
+    // The BEYOND_MASK_PROMPT is set as a system message for consistent guiding principles.
+    const claudeMessages: Anthropic.Messages.MessageParam[] = [
+      {
+        role: 'system',
+        content: BEYOND_MASK_PROMPT,
+      },
+      ...conversationMessages, // Include historical messages directly
+      {
+        role: 'user',
+        content: `${languageInstruction}\n\n${message}`, // Current user message with dynamic language instruction
+      },
+    ]
 
-    // Call the Anthropic API with proper system message format
+    // Call the Anthropic API
     const response = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
+      model: 'claude-sonnet-4-20250514', // Using the specific model provided
       max_tokens: 1000,
-      system: systemPrompt, // System prompt goes here, not in messages
-      messages: conversationMessages, // Only user/assistant messages here
+      messages: claudeMessages,
     })
 
     // Extract the text content from Claude's response
     const textContent = response.content.find(block => block.type === 'text')
     const assistantResponse = textContent ? textContent.text : 'No response available'
 
-    // Validate that response maintains language consistency
-    const responseLanguage = detectLanguage(assistantResponse);
-    if (responseLanguage !== messageLanguage) {
-      console.warn(`Language mismatch: User used ${messageLanguage}, AI responded in ${responseLanguage}`);
-    }
-
     // Save both user message and assistant response to the database
+    saveClient = await pool.connect()
     try {
-      // Use transaction to ensure both messages are saved together
-      await client.query('BEGIN');
-      
       // Save user message
-      await client.query(
+      await saveClient.query(
         'INSERT INTO messages (conversation_id, role, content, timestamp) VALUES ($1, $2, $3, NOW())',
         [conversationId, 'user', message]
       )
 
       // Save assistant response
-      await client.query(
+      await saveClient.query(
         'INSERT INTO messages (conversation_id, role, content, timestamp) VALUES ($1, $2, $3, NOW())',
         [conversationId, 'assistant', assistantResponse]
       )
-      
-      await client.query('COMMIT');
-      
     } catch (dbError) {
-      console.error('Database save error:', dbError)
-      // Rollback transaction if it was started
-      try {
-        await client.query('ROLLBACK');
-      } catch (rollbackError) {
-        console.error('Rollback error:', rollbackError);
+      console.error('Database save error:', dbError) // Use console.error for errors
+      // Log the error but don't prevent the response from being sent
+    } finally {
+      if (saveClient) {
+        saveClient.release() // Ensure client is released
       }
-      // Continue execution - don't fail the API call due to database issues
     }
 
     // Return the assistant's response
     return NextResponse.json({
-      message: assistantResponse,
-      language: messageLanguage,
-      conversationId: conversationId
+      message: assistantResponse
     })
-    
   } catch (error) {
-    console.error('Error in API route:', error)
-    
-    // Return appropriate error message based on error type
-    if (error instanceof Error) {
-      if (error.message.includes('API key')) {
-        return NextResponse.json({ error: 'API configuration error' }, { status: 500 })
-      }
-      if (error.message.includes('rate limit')) {
-        return NextResponse.json({ error: 'Service temporarily unavailable' }, { status: 429 })
-      }
-    }
-    
+    console.error('Error in API route:', error) // More specific error logging
     return NextResponse.json({ error: 'Failed to get response' }, { status: 500 })
-  } finally {
-    // Ensure database connection is always released
-    if (client) {
-      try {
-        client.release()
-      } catch (releaseError) {
-        console.error('Error releasing database client:', releaseError)
-      }
-    }
   }
 }
+
