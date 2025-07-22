@@ -59,9 +59,9 @@ export default function Chat() {
           <div className="flex items-center space-x-3">
             {/* Logo placeholder - you can add your actual logo here */}
             <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-green-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">M</span>
+              <span className="text-white font-bold text-lg">BM</span>
             </div>
-            <h1 className="text-white text-2xl font-bold">Mind Chat</h1>
+            <h1 className="text-white text-2xl font-bold">Beyond Mask</h1>
           </div>
           <button 
             onClick={downloadChat}
@@ -78,9 +78,9 @@ export default function Chat() {
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
           {messages.length === 0 && (
             <div className="text-center text-gray-400 mt-20">
-              <div className="text-6xl mb-4">🧠</div>
-              <h2 className="text-2xl font-semibold mb-2">Welcome to Mind Chat</h2>
-              <p className="text-lg">Start a conversation to explore your inner thoughts</p>
+              <div className="text-6xl mb-4">🎭</div>
+              <h2 className="text-2xl font-semibold mb-2">Welcome to Beyond Mask</h2>
+              <p className="text-lg">Discover what lies beneath the surface of your psyche</p>
             </div>
           )}
           
@@ -95,11 +95,11 @@ export default function Chat() {
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
                     msg.role === 'user' ? 'bg-white/20' : 'bg-black/20'
                   }`}>
-                    {msg.role === 'user' ? '👤' : '🤖'}
+                    {msg.role === 'user' ? '👤' : '🎭'}
                   </div>
                   <div className="flex-1">
                     <p className="text-sm font-medium opacity-80 mb-1">
-                      {msg.role === 'user' ? 'You' : 'Mind Guide'}
+                      {msg.role === 'user' ? 'You' : 'Psychology Guide'}
                     </p>
                     <p className="leading-relaxed">{msg.content}</p>
                   </div>
@@ -113,10 +113,10 @@ export default function Chat() {
               <div className="bg-gradient-to-r from-red-500 via-orange-500 to-yellow-400 text-white rounded-2xl p-4 mr-12 shadow-lg">
                 <div className="flex items-center space-x-2">
                   <div className="w-8 h-8 rounded-full bg-black/20 flex items-center justify-center text-sm">
-                    🤖
+                    🎭
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium opacity-80 mb-1">Mind Guide</p>
+                    <p className="text-sm font-medium opacity-80 mb-1">Psychology Guide</p>
                     <div className="flex space-x-1">
                       <div className="w-2 h-2 bg-white rounded-full animate-bounce"></div>
                       <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
@@ -138,12 +138,12 @@ export default function Chat() {
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && !loading && sendMessage()}
-                placeholder="Share your thoughts..."
+                placeholder="Explore what lies beneath your mask..."
                 disabled={loading}
                 className="w-full px-6 py-4 bg-gray-800/70 border border-gray-600/50 rounded-2xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 transition-all duration-200"
               />
               <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-                ✨
+                🎭
               </div>
             </div>
             <button 
@@ -156,7 +156,7 @@ export default function Chat() {
           </div>
           
           <div className="mt-3 text-center text-gray-500 text-sm">
-            Explore your mind with AI-guided conversations
+            Journey into the depths of your authentic self
           </div>
         </div>
       </div>
